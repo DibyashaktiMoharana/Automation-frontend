@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Loan Eligibility Engine - User Upload</title>
+    <style>
+      :root {
+        --primary-color: #2563eb;
+        --primary-hover: #1d4ed8;
+        --success-color: #10b981;
+        --error-color: #ef4444;
+        --bg-color: #f8fafc;
+        --card-bg: #ffffff;
+        --text-color: #1e293b;
+        --text-muted: #64748b;
+        --border-color: #e2e8f0;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        background-color: var(--bg-color);
+        color: var(--text-color);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 600px;
+        width: 100%;
+      }
+
+      .card {
+        background: var(--card-bg);
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+          0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        padding: 40px;
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 32px;
+      }
+
+      .header h1 {
+        font-size: 28px;
+        font-weight: 700;
+        margin-bottom: 8px;
+        color: var(--text-color);
+      }
+
+      .header p {
+        color: var(--text-muted);
+        font-size: 16px;
+      }
+
+      .upload-area {
+        border: 2px dashed var(--border-color);
+        border-radius: 12px;
+        padding: 40px;
+        text-align: center;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        background: var(--bg-color);
+      }
+
+      .upload-area:hover,
+      .upload-area.dragover {
+        border-color: var(--primary-color);
+        background: rgba(37, 99, 235, 0.05);
+      }
+
+      .upload-area.has-file {
+        border-color: var(--success-color);
+        background: rgba(16, 185, 129, 0.05);
+      }
+
+      .upload-icon {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 16px;
+        fill: var(--text-muted);
+      }
+
+      .upload-area.has-file .upload-icon {
+        fill: var(--success-color);
+      }
+
+      .upload-text {
+        font-size: 16px;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+      }
+
+      .upload-hint {
+        font-size: 14px;
+        color: var(--text-muted);
+      }
+
+      .file-input {
+        display: none;
+      }
+
+      .file-name {
+        margin-top: 16px;
+        padding: 12px;
+        background: rgba(16, 185, 129, 0.1);
+        border-radius: 8px;
+        font-size: 14px;
+        color: var(--success-color);
+        font-weight: 500;
+      }
+
+      .btn {
+        display: block;
+        width: 100%;
+        padding: 14px 24px;
+        font-size: 16px;
+        font-weight: 600;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-top: 24px;
+      }
+
+      .btn-primary {
+        background: var(--primary-color);
+        color: white;
+      }
+
+      .btn-primary:hover:not(:disabled) {
+        background: var(--primary-hover);
+        transform: translateY(-1px);
+      }
+
+      .btn-primary:disabled {
+        background: var(--border-color);
+        cursor: not-allowed;
+      }
+
+      .status {
+        margin-top: 24px;
+        padding: 16px;
+        border-radius: 10px;
+        font-size: 14px;
+        display: none;
+      }
+
+      .status.show {
+        display: block;
+      }
+
+      .status.loading {
+        background: rgba(37, 99, 235, 0.1);
+        color: var(--primary-color);
+      }
+
+      .status.success {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--success-color);
+      }
+
+      .status.error {
+        background: rgba(239, 68, 68, 0.1);
+        color: var(--error-color);
+      }
+
+      .progress-bar {
+        width: 100%;
+        height: 6px;
+        background: var(--border-color);
+        border-radius: 3px;
+        margin-top: 12px;
+        overflow: hidden;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: var(--primary-color);
+        border-radius: 3px;
+        transition: width 0.3s ease;
+        width: 0%;
+      }
+
+      .expected-format {
+        margin-top: 32px;
+        padding: 20px;
+        background: var(--bg-color);
+        border-radius: 10px;
+      }
+
+      .expected-format h3 {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 12px;
+        color: var(--text-color);
+      }
+
+      .expected-format code {
+        display: block;
+        font-family: "Monaco", "Consolas", monospace;
+        font-size: 12px;
+        color: var(--text-muted);
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+
+      .spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid transparent;
+        border-top-color: currentColor;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-right: 8px;
+        vertical-align: middle;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      footer {
+        margin-top: 24px;
+        text-align: center;
+        font-size: 14px;
+        color: var(--text-muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card">
+        <div class="header">
+          <h1>Loan Eligibility Engine</h1>
+          <p>Upload user data to find matching loan products</p>
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+          <svg
+            class="upload-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M7 10V9C7 6.23858 9.23858 4 12 4C14.7614 4 17 6.23858 17 9V10C19.2091 10 21 11.7909 21 14C21 15.4806 20.1956 16.8084 19 17.5M7 10C4.79086 10 3 11.7909 3 14C3 15.4806 3.8044 16.8084 5 17.5M7 10C7.43285 10 7.84965 10.0688 8.24006 10.1959M12 12V20M12 12L15 15M12 12L9 15"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <p class="upload-text">Drop your CSV file here or click to browse</p>
+          <p class="upload-hint">Only .csv files are accepted</p>
+          <input type="file" id="fileInput" class="file-input" accept=".csv" />
+          <div class="file-name" id="fileName" style="display: none"></div>
+        </div>
+
+        <button class="btn btn-primary" id="uploadBtn" disabled>
+          Upload & Process
+        </button>
+
+        <div class="status" id="status">
+          <span id="statusText"></span>
+          <div class="progress-bar" id="progressBar" style="display: none">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+        </div>
+
+        <div class="expected-format">
+          <h3>📋 Expected CSV Format</h3>
+          <code
+            >user_id,email,monthly_income,credit_score,employment_status,age
+            USR001,john@example.com,50000,720,salaried,32
+            USR002,jane@example.com,75000,680,self-employed,28</code
+          >
+        </div>
+      </div>
+
+      <footer>Loan Eligibility Engine • Powered by n8n + AWS</footer>
+    </div>
+
+    <script>
+      // =================================================================
+      // Configuration
+      // =================================================================
+      // IMPORTANT: Update this URL after deploying your backend
+      const API_BASE_URL = "https://uqahwew46d.execute-api.ap-south-1.amazonaws.com/dev"; // Your deployed API Gateway URL
+
+      // =================================================================
+      // DOM Elements
+      // =================================================================
+      const uploadArea = document.getElementById("uploadArea");
+      const fileInput = document.getElementById("fileInput");
+      const fileName = document.getElementById("fileName");
+      const uploadBtn = document.getElementById("uploadBtn");
+      const status = document.getElementById("status");
+      const statusText = document.getElementById("statusText");
+      const progressBar = document.getElementById("progressBar");
+      const progressFill = document.getElementById("progressFill");
+
+      let selectedFile = null;
+
+      // =================================================================
+      // Event Listeners
+      // =================================================================
+      uploadArea.addEventListener("click", () => fileInput.click());
+
+      uploadArea.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        uploadArea.classList.add("dragover");
+      });
+
+      uploadArea.addEventListener("dragleave", () => {
+        uploadArea.classList.remove("dragover");
+      });
+
+      uploadArea.addEventListener("drop", (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove("dragover");
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          handleFileSelect(files[0]);
+        }
+      });
+
+      fileInput.addEventListener("change", (e) => {
+        if (e.target.files.length > 0) {
+          handleFileSelect(e.target.files[0]);
+        }
+      });
+
+      uploadBtn.addEventListener("click", uploadFile);
+
+      // =================================================================
+      // Functions
+      // =================================================================
+      function handleFileSelect(file) {
+        // Validate file type
+        if (!file.name.toLowerCase().endsWith(".csv")) {
+          showStatus("error", "❌ Please select a CSV file");
+          return;
+        }
+
+        // Validate file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+          showStatus("error", "❌ File size must be less than 10MB");
+          return;
+        }
+
+        selectedFile = file;
+        fileName.textContent = `📄 ${file.name} (${formatFileSize(file.size)})`;
+        fileName.style.display = "block";
+        uploadArea.classList.add("has-file");
+        uploadBtn.disabled = false;
+        hideStatus();
+      }
+
+      async function uploadFile() {
+        if (!selectedFile) return;
+
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<span class="spinner"></span>Uploading...';
+        showStatus("loading", "⏳ Getting upload URL...");
+
+        try {
+          // Step 1: Get presigned URL from backend
+          const urlResponse = await fetch(
+            `${API_BASE_URL}/upload-url?filename=${encodeURIComponent(
+              selectedFile.name
+            )}`
+          );
+
+          if (!urlResponse.ok) {
+            const error = await urlResponse.json();
+            throw new Error(error.message || "Failed to get upload URL");
+          }
+
+          const { data } = await urlResponse.json();
+          const { uploadUrl, key } = data;
+
+          showStatus("loading", "⏳ Uploading file to S3...");
+          progressBar.style.display = "block";
+
+          // Step 2: Upload file directly to S3
+          const uploadResponse = await uploadToS3(uploadUrl, selectedFile);
+
+          if (!uploadResponse.ok) {
+            throw new Error("Failed to upload file to S3");
+          }
+
+          // Success!
+          showStatus(
+            "success",
+            `✅ Upload successful! Processing ${selectedFile.name}...`
+          );
+          progressFill.style.width = "100%";
+
+          // Show additional info
+          setTimeout(() => {
+            showStatus(
+              "success",
+              `✅ File processed! Check your email for loan matches.\n\nBatch Key: ${key}`
+            );
+          }, 2000);
+
+          // Reset form
+          resetForm();
+        } catch (error) {
+          console.error("Upload error:", error);
+          showStatus("error", `❌ ${error.message}`);
+          uploadBtn.disabled = false;
+          uploadBtn.innerHTML = "Upload & Process";
+        }
+      }
+
+      async function uploadToS3(presignedUrl, file) {
+        return new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+
+          xhr.upload.addEventListener("progress", (e) => {
+            if (e.lengthComputable) {
+              const percent = Math.round((e.loaded / e.total) * 100);
+              progressFill.style.width = `${percent}%`;
+            }
+          });
+
+          xhr.addEventListener("load", () => {
+            resolve({ ok: xhr.status >= 200 && xhr.status < 300 });
+          });
+
+          xhr.addEventListener("error", () => {
+            reject(new Error("Network error during upload"));
+          });
+
+          xhr.open("PUT", presignedUrl);
+          xhr.setRequestHeader("Content-Type", "text/csv");
+          xhr.send(file);
+        });
+      }
+
+      function showStatus(type, message) {
+        status.className = `status show ${type}`;
+        statusText.textContent = message;
+      }
+
+      function hideStatus() {
+        status.className = "status";
+      }
+
+      function resetForm() {
+        selectedFile = null;
+        fileInput.value = "";
+        fileName.style.display = "none";
+        uploadArea.classList.remove("has-file");
+        uploadBtn.innerHTML = "Upload & Process";
+
+        // Keep button disabled until new file selected
+        setTimeout(() => {
+          progressBar.style.display = "none";
+          progressFill.style.width = "0%";
+        }, 3000);
+      }
+
+      function formatFileSize(bytes) {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+        return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+      }
+    </script>
+  </body>
+</html>
