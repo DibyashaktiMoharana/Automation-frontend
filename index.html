@@ -149,10 +149,11 @@
       .btn-primary:disabled {
         background: var(--border-color);
         cursor: not-allowed;
+        transform: none;
       }
 
       .status {
-        margin-top: 24px;
+        margin-top: 20px;
         padding: 16px;
         border-radius: 10px;
         font-size: 14px;
@@ -163,23 +164,25 @@
         display: block;
       }
 
-      .status.loading {
-        background: rgba(37, 99, 235, 0.1);
-        color: var(--primary-color);
-      }
-
       .status.success {
         background: rgba(16, 185, 129, 0.1);
         color: var(--success-color);
+        border: 1px solid rgba(16, 185, 129, 0.2);
       }
 
       .status.error {
         background: rgba(239, 68, 68, 0.1);
         color: var(--error-color);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+      }
+
+      .status.loading {
+        background: rgba(37, 99, 235, 0.1);
+        color: var(--primary-color);
+        border: 1px solid rgba(37, 99, 235, 0.2);
       }
 
       .progress-bar {
-        width: 100%;
         height: 6px;
         background: var(--border-color);
         border-radius: 3px;
@@ -191,40 +194,47 @@
         height: 100%;
         background: var(--primary-color);
         border-radius: 3px;
-        transition: width 0.3s ease;
         width: 0%;
+        transition: width 0.3s ease;
       }
 
       .expected-format {
-        margin-top: 32px;
-        padding: 20px;
+        margin-top: 24px;
+        padding: 16px;
         background: var(--bg-color);
         border-radius: 10px;
+        border: 1px solid var(--border-color);
       }
 
       .expected-format h3 {
         font-size: 14px;
         font-weight: 600;
-        margin-bottom: 12px;
+        margin-bottom: 8px;
         color: var(--text-color);
       }
 
       .expected-format code {
         display: block;
-        font-family: "Monaco", "Consolas", monospace;
         font-size: 12px;
         color: var(--text-muted);
         white-space: pre-wrap;
-        word-break: break-all;
+        font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+        line-height: 1.6;
+      }
+
+      footer {
+        margin-top: 32px;
+        font-size: 13px;
+        color: var(--text-muted);
       }
 
       .spinner {
         display: inline-block;
         width: 16px;
         height: 16px;
-        border: 2px solid transparent;
-        border-top-color: currentColor;
+        border: 2px solid rgba(255, 255, 255, 0.3);
         border-radius: 50%;
+        border-top-color: #fff;
         animation: spin 0.8s linear infinite;
         margin-right: 8px;
         vertical-align: middle;
@@ -234,13 +244,6 @@
         to {
           transform: rotate(360deg);
         }
-      }
-
-      footer {
-        margin-top: 24px;
-        text-align: center;
-        font-size: 14px;
-        color: var(--text-muted);
       }
     </style>
   </head>
@@ -286,11 +289,9 @@
 
         <div class="expected-format">
           <h3>📋 Expected CSV Format</h3>
-          <code
-            >user_id,email,monthly_income,credit_score,employment_status,age
-            USR001,john@example.com,50000,720,salaried,32
-            USR002,jane@example.com,75000,680,self-employed,28</code
-          >
+          <code>user_id,email,monthly_income,credit_score,employment_status,age
+USR001,john@example.com,50000,720,salaried,32
+USR002,jane@example.com,75000,680,self-employed,28</code>
         </div>
       </div>
 
@@ -301,8 +302,7 @@
       // =================================================================
       // Configuration
       // =================================================================
-      // IMPORTANT: Update this URL after deploying your backend
-      const API_BASE_URL = "https://uqahwew46d.execute-api.ap-south-1.amazonaws.com/dev"; // Your deployed API Gateway URL
+      const API_BASE_URL = "https://uqahwew46d.execute-api.ap-south-1.amazonaws.com/dev";
 
       // =================================================================
       // DOM Elements
@@ -353,20 +353,18 @@
       // Functions
       // =================================================================
       function handleFileSelect(file) {
-        // Validate file type
         if (!file.name.toLowerCase().endsWith(".csv")) {
           showStatus("error", "❌ Please select a CSV file");
           return;
         }
 
-        // Validate file size (max 10MB)
         if (file.size > 10 * 1024 * 1024) {
           showStatus("error", "❌ File size must be less than 10MB");
           return;
         }
 
         selectedFile = file;
-        fileName.textContent = `📄 ${file.name} (${formatFileSize(file.size)})`;
+        fileName.textContent = "📄 " + file.name + " (" + formatFileSize(file.size) + ")";
         fileName.style.display = "block";
         uploadArea.classList.add("has-file");
         uploadBtn.disabled = false;
@@ -382,19 +380,29 @@
 
         try {
           // Step 1: Get presigned URL from backend
+          console.log("Fetching presigned URL...");
+          
           const urlResponse = await fetch(
-            `${API_BASE_URL}/upload-url?filename=${encodeURIComponent(
-              selectedFile.name
-            )}`
+            API_BASE_URL + "/upload-url?filename=" + encodeURIComponent(selectedFile.name),
+            {
+              method: "GET",
+              mode: "cors"
+            }
           );
 
+          console.log("Response status:", urlResponse.status);
+
           if (!urlResponse.ok) {
-            const error = await urlResponse.json();
-            throw new Error(error.message || "Failed to get upload URL");
+            const errorText = await urlResponse.text();
+            console.error("Error response:", errorText);
+            throw new Error(errorText || "Failed to get upload URL");
           }
 
-          const { data } = await urlResponse.json();
-          const { uploadUrl, key } = data;
+          const responseData = await urlResponse.json();
+          console.log("Response data:", responseData);
+          
+          const uploadUrl = responseData.data.uploadUrl;
+          const key = responseData.data.key;
 
           showStatus("loading", "⏳ Uploading file to S3...");
           progressBar.style.display = "block";
@@ -403,50 +411,44 @@
           const uploadResponse = await uploadToS3(uploadUrl, selectedFile);
 
           if (!uploadResponse.ok) {
-            throw new Error("Failed to upload file to S3");
+            throw new Error("Failed to upload file to S3 (Status: " + uploadResponse.status + ")");
           }
 
           // Success!
-          showStatus(
-            "success",
-            `✅ Upload successful! Processing ${selectedFile.name}...`
-          );
+          showStatus("success", "✅ Upload successful! Processing " + selectedFile.name + "...");
           progressFill.style.width = "100%";
 
-          // Show additional info
-          setTimeout(() => {
-            showStatus(
-              "success",
-              `✅ File processed! Check your email for loan matches.\n\nBatch Key: ${key}`
-            );
+          setTimeout(function() {
+            showStatus("success", "✅ File processed! Check your email for loan matches.\n\nBatch Key: " + key);
           }, 2000);
 
-          // Reset form
           resetForm();
         } catch (error) {
           console.error("Upload error:", error);
-          showStatus("error", `❌ ${error.message}`);
+          showStatus("error", "❌ " + error.message);
           uploadBtn.disabled = false;
           uploadBtn.innerHTML = "Upload & Process";
         }
       }
 
-      async function uploadToS3(presignedUrl, file) {
-        return new Promise((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
+      function uploadToS3(presignedUrl, file) {
+        return new Promise(function(resolve, reject) {
+          var xhr = new XMLHttpRequest();
 
-          xhr.upload.addEventListener("progress", (e) => {
+          xhr.upload.addEventListener("progress", function(e) {
             if (e.lengthComputable) {
-              const percent = Math.round((e.loaded / e.total) * 100);
-              progressFill.style.width = `${percent}%`;
+              var percent = Math.round((e.loaded / e.total) * 100);
+              progressFill.style.width = percent + "%";
             }
           });
 
-          xhr.addEventListener("load", () => {
-            resolve({ ok: xhr.status >= 200 && xhr.status < 300 });
+          xhr.addEventListener("load", function() {
+            console.log("S3 upload status:", xhr.status);
+            resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status });
           });
 
-          xhr.addEventListener("error", () => {
+          xhr.addEventListener("error", function(e) {
+            console.error("S3 upload error:", e);
             reject(new Error("Network error during upload"));
           });
 
@@ -457,7 +459,7 @@
       }
 
       function showStatus(type, message) {
-        status.className = `status show ${type}`;
+        status.className = "status show " + type;
         statusText.textContent = message;
       }
 
@@ -472,8 +474,7 @@
         uploadArea.classList.remove("has-file");
         uploadBtn.innerHTML = "Upload & Process";
 
-        // Keep button disabled until new file selected
-        setTimeout(() => {
+        setTimeout(function() {
           progressBar.style.display = "none";
           progressFill.style.width = "0%";
         }, 3000);
